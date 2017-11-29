@@ -459,7 +459,7 @@ class TlsSharkInteractive(cmd.Cmd):
     def complete_save(self, text, line, begidx, endidx):
         return [i for i in ['requests', 'responses', 'stream', 'all'] if i.startswith(text)]
 
-    # TODO
+    # TODO: save all streams
     def save_all_streams(self, headers):
         pprint.pprint(headers)
 
