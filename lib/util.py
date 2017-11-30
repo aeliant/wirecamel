@@ -160,7 +160,8 @@ COMMIT
 -A INPUT -p tcp -m state --state NEW -m tcp --dport 443 -j ACCEPT
 -A INPUT -p tcp -m state --state NEW -m tcp --dport 80 -j ACCEPT
 -A FORWARD -i {} -o {} -j ACCEPT
-COMMIT""".format(int2, int1, int2)
+COMMIT
+""".format(int2, int1, int2)
 
     # Writing conf
     with open('conf/iptables-configuration', 'w') as fconf:
