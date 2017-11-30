@@ -1,5 +1,4 @@
 connections.log
 dependencies_todo
 sslsplit/
-sslsplit-keys/
-sslsplit-logs
+.idea/
