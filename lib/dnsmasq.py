@@ -35,7 +35,7 @@ def load_conf():
 def write_conf(interface):
     conf = """interface={}
 cache-size=256
-dhcpd-range=10.0.0.10,10.0.0.100,24h
+dhcp-range=10.0.0.10,10.0.0.100,24h
 dhcp-option=23,64
 """.format(interface)
 
