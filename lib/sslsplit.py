@@ -4,11 +4,19 @@ import style
 import subprocess
 import iptables
 import net
+import dnsmasq
+import hostapd
 
 from os.path import isfile
 
 SSL_PORT = '8443'
 TCP_PORT = '8080'
+
+KEYS_DIR = 'sslsplit/keys/'
+LOGS_DIR = 'sslsplit/logs/'
+CONN_FILE = 'sslsplit/connections.log'
+
+XTERM_TITLE = 'SSLSplit Console'
 
 
 # Create the sslsplit directory structure
@@ -49,7 +57,7 @@ def generate_certs(save_dir):
 
 
 # Start SSL Split
-def start(tmp_dir_iptables, iptables_conf, interface, hostapd_conf, connections_log, log_dir, keys_dir):
+def start(interface):
     # Checking processes with airmon-ng
     res = net.kill_unwanted()
     style.print_call_info(res, "airmon-ng", "Killed unwanted processes.")
@@ -66,46 +74,39 @@ def start(tmp_dir_iptables, iptables_conf, interface, hostapd_conf, connections_
     res = iptables.flush_nat()
     style.print_call_info(res, 'iptables', 'Flushed iptables rules')
 
+    # Setting interface to listen on for dnsmasq
+    dnsmasq.write_conf(interface)
+
     # Starting dnsmasq service
-    res = subprocess.call("service dnsmasq start".split(" "), stdout=subprocess.PIPE)
-    style.checked('Started dnsmasq service')
+    res = dnsmasq.start()
+    style.print_call_info(res, 'dnsmasq', 'Started dnsmasq service')
 
     # Loading iptables rules for SSLSplit and hostapd
     res = iptables.restore(iptables.SSLSPLIT_CONF)
     style.print_call_info(res, 'iptables', 'Updated iptables rules for SSL Split')
 
     # Confiuguring interface
-    res = subprocess.call(
-        "ifconfig {} 10.0.0.1/24 up".format(interface).split(" "),
-        stdout=subprocess.PIPE
-    )
+    res = net.configure_interface(interface)
     style.print_call_info(res, "ifconfig", "Configured interface")
 
     # Enabling IP forward
-    res = net.ipforward(enable=True)
+    res = net.ip_forward(enable=True)
     style.print_call_info(res, "ip_forward", "Enabled IP forwarding")
 
     # Starting hostapd
-    subhostapd = subprocess.Popen(
-        [
-            'xterm', '-T', 'Hostapd console',
-            '-hold', '-e',
-
-            'hostapd', '-d', hostapd_conf
-        ]
-    )
+    subhostapd = hostapd.start()
     style.print_call_info(0, "hostapd", "Started hostapd")
 
     # Starting SSL Split
     subssl = subprocess.Popen(
         [
-            'xterm', '-T', 'SSL Split console', '-e',
+            'xterm', '-T', XTERM_TITLE, '-e',
 
             'sslsplit', '-D',
-            '-l', connections_log,
-            '-S', log_dir,
-            '-k', "{}/ca.key".format(keys_dir),
-            '-c', "{}/ca.crt".format(keys_dir),
+            '-l', CONN_FILE,
+            '-S', LOGS_DIR,
+            '-k', "{}/ca.key".format(KEYS_DIR),
+            '-c', "{}/ca.crt".format(KEYS_DIR),
             'ssl', '0.0.0.0', SSL_PORT,
             'tcp', '0.0.0.0', TCP_PORT
         ]
