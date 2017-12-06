@@ -8,10 +8,12 @@ import dnsmasq
 import hostapd
 
 from os.path import isfile
+from os import unlink
 
 SSL_PORT = '8443'
 TCP_PORT = '8080'
 
+MAIN_DIR = 'sslsplit/'
 KEYS_DIR = 'sslsplit/keys/'
 LOGS_DIR = 'sslsplit/logs/'
 CONN_FILE = 'sslsplit/connections.log'
@@ -20,24 +22,24 @@ XTERM_TITLE = 'SSLSplit Console'
 
 
 # Create the sslsplit directory structure
-def create_structure(config):
-    if not os.path.isdir(config['main']):
+def create_structure():
+    if not os.path.isdir(MAIN_DIR):
         style.warning("SSLSplit structure missing, creating it...")
-        os.mkdir(config['main'])
-        os.mkdir(config['keys'])
-        os.mkdir(config['log_dir'])
+        os.mkdir(MAIN_DIR)
+        os.mkdir(KEYS_DIR)
+        os.mkdir(LOGS_DIR)
 
 
 # Generate certificates for ssl split
-def generate_certs(save_dir):
+def generate_certs():
     # No need to generate if already exists
-    if isfile("{}ca.key".format(save_dir)) and isfile("{}ca.crt".format(save_dir)):
+    if isfile("{}ca.key".format(KEYS_DIR)) and isfile("{}ca.crt".format(KEYS_DIR)):
         return
 
     # Private key
     style.loading("Generating private key...")
     p = subprocess.Popen(
-        "openssl genrsa -out {}ca.key 4096".format(save_dir).split(" "),
+        "openssl genrsa -out {}ca.key 4096".format(KEYS_DIR).split(" "),
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE
     )
@@ -47,8 +49,8 @@ def generate_certs(save_dir):
     style.loading("Generating public key...")
     p = subprocess.Popen(
         "openssl req -new -x509 -days 1826 -out {}ca.crt -key {}ca.key -subj /CN=wirecamel".format(
-            save_dir,
-            save_dir
+            KEYS_DIR,
+            KEYS_DIR
         ).split(" "),
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE
@@ -114,3 +116,30 @@ def start(interface):
     style.print_call_info(0, "sslsplit", "Started SSLSplit")
 
     return subhostapd, subssl
+
+
+# Stop SSL Split
+def stop(subssl, subhostapd, restart_nm=False):
+    # TODO: Check type
+    # Stopping processes (hostapd & sslsplit)
+    subssl.kill()
+    subhostapd.kill()
+
+    # Restoring iptables rules
+    res = iptables.restore(iptables.TMP_RULES)
+    style.print_call_info(res, 'iptables', 'Restored iptables rules')
+
+    # Removing tmp file
+    unlink(iptables.TMP_RULES)
+
+    # Disabling ip forwarding
+    res = net.ip_forward(enable=False)
+    style.print_call_info(res, 'ip_forward', 'Disabled IP forwarding')
+
+    # Restarting NetworkManager (if it was running initially)
+    if restart_nm:
+        res = subprocess.call(
+            ['systemctl', 'start', 'NetworkManager']
+        )
+        style.print_call_info(res, 'NetworkManager', 'Restarted NetworkManager')
+
