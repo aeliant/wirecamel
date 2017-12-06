@@ -23,12 +23,14 @@ XTERM_TITLE = 'SSLSplit Console'
 
 
 # Create the sslsplit directory structure
+# TODO: Create structure in personnal directory ? (~/.wirecamel)
 def create_structure():
+    # Checking that directory doesn't exists (if already exists, was created by this script)
     if not os.path.isdir(MAIN_DIR):
         style.warning("SSLSplit structure missing, creating it...")
-        os.mkdir(MAIN_DIR)
-        os.mkdir(KEYS_DIR)
-        os.mkdir(LOGS_DIR)
+        os.mkdir(MAIN_DIR)  # Creating main directory
+        os.mkdir(KEYS_DIR)  # Creating certs directory
+        os.mkdir(LOGS_DIR)  # Creating logs directory
 
 
 # Generate certificates for ssl split
