@@ -6,9 +6,10 @@ import iptables
 import net
 import dnsmasq
 import hostapd
+import tarfile
 
-from os.path import isfile
-from os import unlink
+from os.path import isfile, basename, isdir
+from os import unlink, listdir, mkdir
 
 SSL_PORT = '8443'
 TCP_PORT = '8080'
@@ -26,11 +27,12 @@ XTERM_TITLE = 'SSLSplit Console'
 # TODO: Create structure in personnal directory ? (~/.wirecamel)
 def create_structure():
     # Checking that directory doesn't exists (if already exists, was created by this script)
-    if not os.path.isdir(MAIN_DIR):
+    if not isdir(MAIN_DIR):
         style.warning("SSLSplit structure missing, creating it...")
-        os.mkdir(MAIN_DIR)  # Creating main directory
-        os.mkdir(KEYS_DIR)  # Creating certs directory
-        os.mkdir(LOGS_DIR)  # Creating logs directory
+        mkdir(MAIN_DIR)  # Creating main directory
+        mkdir(KEYS_DIR)  # Creating certs directory
+        mkdir(LOGS_DIR)  # Creating logs directory
+        mkdir(SAVE_DIR)  # Creating the save directory
 
 
 # Generate certificates for ssl split
@@ -156,3 +158,27 @@ def stop(subssl, subhostapd, restart_nm=False):
             ['systemctl', 'start', 'NetworkManager']
         )
         style.print_call_info(res, 'NetworkManager', 'Restarted NetworkManager')
+
+
+# Make a backup of all logs
+def save_logs(filename):
+    # Checking if dir is empty
+    if len(listdir(LOGS_DIR)) == 0:
+        return False
+
+    # Opening the new tarfile
+    with tarfile.open("{}{}.gz".format(SAVE_DIR, filename), 'w:gz') as tar:
+        # Adding logs directory
+        tar.add(LOGS_DIR, arcname=basename(LOGS_DIR))
+
+        # Adding connections.log file
+        conn_file_added = tar.add(CONN_FILE, arcname='connections.log') if isfile(CONN_FILE) else None
+
+    # Removing files
+    for filetoremove in listdir(LOGS_DIR):
+        # if isfile("{}{}".format(LOGS_DIR, filetoremove)):
+        unlink("{}{}".format(LOGS_DIR, filetoremove))
+
+    # Removing connections log file
+    if conn_file_added:
+        unlink(CONN_FILE)
