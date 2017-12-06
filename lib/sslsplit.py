@@ -16,6 +16,7 @@ TCP_PORT = '8080'
 MAIN_DIR = 'sslsplit/'
 KEYS_DIR = 'sslsplit/keys/'
 LOGS_DIR = 'sslsplit/logs/'
+SAVE_DIR = 'sslsplit/saved_logs/'
 CONN_FILE = 'sslsplit/connections.log'
 
 XTERM_TITLE = 'SSLSplit Console'
@@ -120,10 +121,25 @@ def start(interface):
 
 # Stop SSL Split
 def stop(subssl, subhostapd, restart_nm=False):
-    # TODO: Check type
+    # Checking subssl
+    if not isinstance(subssl, subprocess.Popen):
+        raise Exception("[subssl] not a process. Aborting")
+
+    # Checking subhostapd
+    if not isinstance(subhostapd, subprocess.Popen):
+        raise Exception("[subhostapd] not a process. Aborting")
+
     # Stopping processes (hostapd & sslsplit)
     subssl.kill()
     subhostapd.kill()
+
+    # Disabling ip forwarding
+    res = net.ip_forward(enable=False)
+    style.print_call_info(res, 'ip_forward', 'Disabled IP forwarding')
+
+    # Stopping dnsmasq
+    res = dnsmasq.stop()
+    style.print_call_info(res, 'dnsmasq', 'Stopped dnsmasq')
 
     # Restoring iptables rules
     res = iptables.restore(iptables.TMP_RULES)
@@ -132,14 +148,9 @@ def stop(subssl, subhostapd, restart_nm=False):
     # Removing tmp file
     unlink(iptables.TMP_RULES)
 
-    # Disabling ip forwarding
-    res = net.ip_forward(enable=False)
-    style.print_call_info(res, 'ip_forward', 'Disabled IP forwarding')
-
     # Restarting NetworkManager (if it was running initially)
     if restart_nm:
         res = subprocess.call(
             ['systemctl', 'start', 'NetworkManager']
         )
         style.print_call_info(res, 'NetworkManager', 'Restarted NetworkManager')
-
