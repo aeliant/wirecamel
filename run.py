@@ -2,19 +2,17 @@
 # coding=utf-8
 import cmd
 import getpass
-import tarfile
 import codecs
-import subprocess
 import re
 import pprint
 import json
 
-from os import listdir, mkdir, system, unlink, remove
+from os import listdir, mkdir, system, remove
 from os.path import isfile, isdir, join, getmtime, basename
 from dateutil import tz
 from tabulate import tabulate
 
-from lib import style, sslsplit, util, core, hostapd
+from lib import style, sslsplit, util, core, hostapd, iptables, net
 
 
 class TlsSharkInteractive(cmd.Cmd):
@@ -67,19 +65,10 @@ class TlsSharkInteractive(cmd.Cmd):
     # Main configuration variables
     config = {
         'interface': '',
+        'int_ap': '', # TODO: Change with this for differenciation
         'save_dir': 'saved_logs/',
-        'temp_iptables': '/tmp/wirecamel_iptables_restore',
-        'hostapd_conf': 'conf/hostapd.conf',
-        'iptables_conf': 'conf/iptables-configuration.bak',
         'max_result': None,
         'range_result': []
-    }
-
-    sslsplit_config = {
-        'main': 'sslsplit/',
-        'log_dir': 'sslsplit/logs/',
-        'keys': 'sslsplit/keys/',
-        'connections': 'sslsplit/connections.log'
     }
 
     sslsplit_started = False
@@ -88,31 +77,37 @@ class TlsSharkInteractive(cmd.Cmd):
     subhostapd = None
     subssl = None
 
+    net_man_started = False
+
     # Initial configuration
     def preloop(self):
+        # Checking if NetworkManager is running
+        self.net_man_started = net.check_net_manager()
+
         # Checking if dependencies are installed
         util.check_dependencies()
 
         # Creating SSL Split directory structure if needed
-        sslsplit.create_structure(self.sslsplit_config)
+        sslsplit.create_structure()
 
         # Generate certificates if needed
-        sslsplit.generate_certs(self.sslsplit_config['keys'])
+        sslsplit.generate_certs()
 
         # Reading hostapd configuration file
-        self.hostapd_options = hostapd.load_hostapd_conf(self.config['hostapd_conf'])
+        self.hostapd_options = hostapd.load_config()
 
         # Clearing terminal
         system("clear")
 
     # Allow the user to configure interfaces (access point and internet access)
     def do_init_interfaces(self, value):
+        # TODO: Check if access point mode available
         # Retrieving interfaces (wireless and wired)
         wireless_interfaces = util.get_wireless_interface()
         net_interfaces = util.get_network_interfaces()
 
         # If only one interface, selecting it for the access point
-        # TODO: One interface ?
+        # TODO: One interface ? -> loopback
         if len(wireless_interfaces) == 1:
             # Setting the interface for AP in conf
             self.config['interface'] = wireless_interfaces[0]
@@ -131,15 +126,14 @@ class TlsSharkInteractive(cmd.Cmd):
                 try:
                     user_choice = int(user_choice)
                     self.config['interface'] = wireless_interfaces[user_choice]
+                    self.hostapd_options['interface'] = wireless_interfaces[user_choice]
                 except ValueError:
                     user_choice = -1
                     continue
 
-            # Write iptables configuration
-            util.write_iptables_conf(wireless_interfaces[user_choice], net_interfaces[0])
-
-        exit(1)
-        print(value)
+            # Write iptables and hostapd configuration
+            iptables.write_conf(wireless_interfaces[user_choice], net_interfaces[0], iptables.SSLSPLIT_CONF)
+            hostapd.save_config(self.hostapd_options)
 
     # Print initial configuration and allow the user to edit it
     def do_init_config(self, value):
@@ -238,7 +232,7 @@ class TlsSharkInteractive(cmd.Cmd):
             if len(arguments) == 2:
                 if arguments[0] in self.hostapd_options:
                     self.hostapd_options[arguments[0]] = arguments[1]
-                    hostapd.save_config(self.hostapd_options, 'conf/hostapd.conf')
+                    hostapd.save_config(self.hostapd_options)
                 else:
                     style.fail("Usage: ap_config | ap_config config_param value")
             else:
@@ -250,81 +244,9 @@ class TlsSharkInteractive(cmd.Cmd):
         Start SSL Split as an access point
         """
         if len(self.config['interface']) != 0:
-            # Checking processes with airmon-ng
-            res = subprocess.call(
-                "airmon-ng check kill".split(" "),
-                stdout=subprocess.PIPE
-            )
-            style.print_call_info(res, "airmon-ng", "Killed unwanted processes.")
-
-            # Unblocking wifi if needed
-            res = subprocess.call("rfkill unblock wifi".split(" "), stdout=subprocess.PIPE)
-            style.print_call_info(res, "rfkill", "Unblocked Wifi (Soft and Hardware mode)")
-
-            # Saving actual iptables rules to restore it after stopping the ap
-            res = subprocess.call(
-                "iptables-save > {}".format(self.config['temp_iptables']).split(" "),
-                stdout=subprocess.PIPE
-            )
-            style.print_call_info(res, "iptables", "Saved actual iptables rules")
-
-            # Flushing iptables
-            res = subprocess.call("iptables -t nat -F".split(" "), stdout=subprocess.PIPE)
-            style.print_call_info(res, "iptables", "Flushed iptables rules")
-
-            # Starting dnsmasq service
-            res = subprocess.call("service dnsmasq start".split(" "), stdout=subprocess.PIPE)
-            style.print_call_info(res, "dnsmasq", "Started dnsmasq service")
-
-            # Loading iptables rules for SSLSplit and hostapd
-            res = subprocess.call(
-                "iptables-restore {}".format(self.config['iptables_conf']).split(" ")
-            )
-            style.print_call_info(res, 'iptables', 'Updated iptables rules for SSL Split')
-
-            # TODO: Remove
-            # iptables rules for SSLSplit
-            # iptables_rules = [
-            #     "iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-ports 8080",
-            #     "iptables -t nat -A PREROUTING -p tcp --dport 443 -j REDIRECT --to-ports 8443",
-            #     "iptables -I INPUT -p tcp -m state --state NEW -m tcp --dport 80 -j ACCEPT",
-            #     "iptables -I INPUT -p tcp -m state --state NEW -m tcp --dport 443 -j ACCEPT",
-            #     "iptables -I INPUT -p tcp -m state --state NEW -m tcp --dport 8443 -j ACCEPT",
-            #     "iptables -I INPUT -p tcp -m state --state NEW -m tcp --dport 8080 -j ACCEPT"
-            # ]
-            # for command in iptables_rules:
-            #     subprocess.call(command.split(" "), stdout=subprocess.PIPE)
-            # style.print_call_info(0, "iptables", "Updated iptables rules for SSLSplit")
-
-            # iptables rules for hostapd
-            # iptables_rules = [
-            #     "iptables -t nat -A POSTROUTING -o wlan1 -j MASQUERADE",
-            #     "iptables -A FORWARD -i wlan0 -o wlan1 -j ACCEPT"
-            # ]
-            # for command in iptables_rules:
-            #     subprocess.call(command.split(" "), stdout=subprocess.PIPE)
-            # style.print_call_info(0, "iptables", "Updated iptables rules for hostapd")
-
-            # Confiuguring interface
-            res = subprocess.call(
-                "ifconfig {} 10.0.0.1/24 up".format(self.config['interface']).split(" "),
-                stdout=subprocess.PIPE
-            )
-            style.print_call_info(res, "ifconfig", "Configured interface")
-
-            # Enabling IP forward
-            res = subprocess.call("sysctl -w net.ipv4.ip_forward=1".split(" "), stdout=subprocess.PIPE)
-            style.print_call_info(res, "ip_forward", "Enabled IP forwarding")
-
-            # Starting hostapd
-            self.subhostapd = subprocess.Popen(
-                ['xterm', '-T', 'Hostapd console', '-hold', '-e', 'hostapd', '-d', 'conf/hostapd.conf']
-            )
-            style.print_call_info(0, "hostapd", "Started hostapd")
-
-            # Starting SSLSPlit
-            self.subssl = subprocess.Popen(
-                ['xterm', '-T', 'SSL Split console', '-e', './start_sslsplit.sh']
+            # Starting SSL Split
+            (self.subhostapd, self.subssl) = sslsplit.start(
+                self.config['interface']
             )
 
             # Setting started for sslsplit
@@ -340,26 +262,12 @@ class TlsSharkInteractive(cmd.Cmd):
         if not self.sslsplit_started:
             style.fail("SSL Split and hostapd not started")
         else:
-            # Killing previously started process
-            self.subssl.kill()
-            self.subhostapd.kill()
-
-            # Stopping hostapd
-            res = subprocess.call("service hostapd stop".split(" "), stdout=subprocess.PIPE)
-            style.print_call_info(0, "hostapd", "Stopped hostapd service")
-
-            # Restoring iptables rules
-            res = subprocess.call("iptables-restore /tmp/wirecamel_iptables_restore".split(" "), stdout=subprocess.PIPE)
-            unlink("/tmp/wirecamel_iptables_restore")
-            style.print_call_info(res, "iptables", "Restored iptables nat rules")
-
-            # Disabling ip forwarding
-            res = subprocess.call("sysctl -w net.ipv4.ip_forward=0".split(" "), stdout=subprocess.PIPE)
-            style.print_call_info(res, "ip_foward", "Disabled IP forwarding")
-
-            # Restarting network manager
-            res = subprocess.call("service NetworkManager start".split(" "), stdout=subprocess.PIPE)
-            style.print_call_info(res, "NetworkManager", "Started NetworkManager")
+            # Stoppings
+            sslsplit.stop(
+                self.subssl,
+                self.subhostapd,
+                self.net_man_started
+            )
 
             # Setting sslsplit started to false
             self.sslsplit_started = False
@@ -387,7 +295,7 @@ class TlsSharkInteractive(cmd.Cmd):
                 log_filename = self.files_association[str(value)]
 
                 # Opening the file
-                with open(self.sslsplit_config['log_dir'] + log_filename) as log_file:
+                with open(sslsplit.LOGS_DIR + log_filename) as log_file:
                     m = re.match(r'(.*)-(.*),(.*)-(.*),(.*)\.log', log_filename)
                     if m:
                         # Parsing the request
@@ -409,7 +317,7 @@ class TlsSharkInteractive(cmd.Cmd):
         # Handling saving all
         if len(value.split(" ")) == 1 and value.split(" ")[0] == 'all':
             for filename in self.files_association:
-                with open("{}{}".format(self.sslsplit_config['log_dir'], filename)) as file_object:
+                with open("{}{}".format(sslsplit.LOGS_DIR, filename)) as file_object:
                     # TODO
                     headers = core.parse_logfile(file_object)
 
@@ -508,7 +416,7 @@ class TlsSharkInteractive(cmd.Cmd):
                 m = re.match(r'(.*)-(.*),(.*)-(.*),(.*)\.log', log)
 
                 # Retrieving number of requests (POST, HEAD, GET, whatever)
-                with open(self.sslsplit_config['log_dir']+log) as log_file:
+                with open(sslsplit.LOGS_DIR) as log_file:
                     content_total = 0
                     total_post = 0
                     total_get = 0
@@ -611,10 +519,10 @@ class TlsSharkInteractive(cmd.Cmd):
 
         # Listing all files in dir
         files = [
-            f for f in listdir(self.sslsplit_config['log_dir'])
-            if isfile(join(self.sslsplit_config['log_dir'], f))
+            f for f in listdir(sslsplit.LOGS_DIR)
+            if isfile(join(sslsplit.LOGS_DIR, f))
         ]
-        files.sort(key=lambda x: getmtime(self.sslsplit_config['log_dir'] + x))
+        files.sort(key=lambda x: getmtime(sslsplit.LOGS_DIR + x))
 
         # Printing informations for each file
         table = []
@@ -646,7 +554,7 @@ class TlsSharkInteractive(cmd.Cmd):
                 continue
 
             # Parsing file
-            with open(self.sslsplit_config['log_dir'] + log_file, 'r') as f:
+            with open(sslsplit.LOGS_DIR + log_file, 'r') as f:
                 # f = open(self.sslsplit_log_dir+file, 'r')
                 host = "-"
                 for line in f.readlines():
@@ -738,21 +646,9 @@ class TlsSharkInteractive(cmd.Cmd):
         while len(filename) == 0:
             filename = raw_input("Name for the backup (without extension)? ")
 
-        with tarfile.open(self.config['save_dir']+filename+".gz", "w:gz") as tar:
-            tar.add(self.sslsplit_config['log_dir'], arcname=basename(self.sslsplit_config['log_dir']))
-            tar.add(self.config['connections_logfile'])
+        sslsplit.save_logs(filename)
 
-        style.print_call_info(0, "tar", "Saved backup to {}".format(self.config['save_dir']))
-
-        for filetoremove in listdir(self.sslsplit_config['log_dir']):
-            if isfile("{}{}".format(self.sslsplit_config['log_dir'], filetoremove)):
-                remove("{}{}".format(self.sslsplit_config['log_dir'], filetoremove))
-
-        # Removing connections log file
-        if isfile(self.config['connections_logfile']):
-            remove(self.config['connections_logfile'])
-
-        style.print_call_info(0, "rm", "Cleaned logs and connections")
+        style.print_call_info(0, "tar", "Saved backup and cleaned directory".format(self.config['save_dir']))
 
     # Base 64 decoding function
     @staticmethod
