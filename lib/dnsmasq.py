@@ -35,9 +35,9 @@ def load_conf():
 def write_conf(interface):
     conf = """interface={}
 cache-size=256
-dhcp-range=10.0.0.10,10.0.0.100,24h
+dhcp-range={},{},24h
 dhcp-option=23,64
-""".format(interface)
+""".format(interface, RANGE_IP_FIRST, RANGE_IP_LAST)
 
     with open(WIRECAMEL_CONF, 'w') as f:
         f.write(conf)
@@ -54,13 +54,13 @@ def start():
     shutil.copyfile(WIRECAMEL_CONF, ACTUAL_CONF)
 
     # Starting the service
-    return subprocess.call(['service', 'dnsmasq', 'start'], stdout=subprocess.PIPE)
+    return subprocess.call(['systemctl', 'start', 'dnsmasq'], stdout=subprocess.PIPE)
 
 
 # Stop the dnsmasq daemon
 def stop():
     # Stopping the service
-    res = subprocess.call(['service', 'dnsmasq', 'stop'], stdout=subprocess.PIPE)
+    res = subprocess.call(['systemctl', 'stop', 'dnsmasq'], stdout=subprocess.PIPE)
 
     # Restoring old configuration
     shutil.copyfile(TMP_CONF, ACTUAL_CONF)
