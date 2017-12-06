@@ -1,6 +1,22 @@
 # coding=utf-8
+import pprint
+import re
 import subprocess
 import dnsmasq
+
+
+# Check if Network Manager is running
+def check_net_manager():
+    output = subprocess.check_output(
+        ['systemctl']
+    )
+    match = re.search(r'NetworkManager.service', output)
+    try:
+        match.group(0)
+    except AttributeError:
+        return False
+
+    return True
 
 
 # Kill unwanted processes for the spawn of an AP
@@ -29,3 +45,14 @@ def configure_interface(interface):
         ['ifconfig', interface, dnsmasq.ROUTER_IP, 'up'],
         stdout=subprocess.PIPE
     )
+
+
+# Get network interfaces
+def interfaces():
+    data = subprocess.check_output(
+        "ls /sys/class/net | grep -v ^lo",
+        shell=True,
+        stderr=subprocess.PIPE
+    )
+
+    return data.strip().split('\n')
