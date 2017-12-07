@@ -1,5 +1,4 @@
 # coding=utf-8
-import pprint
 import re
 import subprocess
 import dnsmasq
