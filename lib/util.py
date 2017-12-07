@@ -137,34 +137,3 @@ def whois_information(ip):
 # Clean absolute URI
 def purify_uri(uri):
     return uri if re.match(r'.*/$', uri) else uri + '/'
-
-
-# Write the iptables configuration file
-def write_iptables_conf(int1, int2):
-    conf = """*nat
-:PREROUTING ACCEPT [0:0]
-:INPUT ACCEPT [0:0]
-:OUTPUT ACCEPT [2:120]
-:POSTROUTING ACCEPT [2:120]
--A PREROUTING -p tcp -m tcp --dport 80 -j REDIRECT --to-ports 8080
--A PREROUTING -p tcp -m tcp --dport 443 -j REDIRECT --to-ports 8443
--A POSTROUTING -o {} -j MASQUERADE
-COMMIT
-
-*filter
-:INPUT ACCEPT [19:2455]
-:FORWARD ACCEPT [0:0]
-:OUTPUT ACCEPT [25:2871]
--A INPUT -p tcp -m state --state NEW -m tcp --dport 8080 -j ACCEPT
--A INPUT -p tcp -m state --state NEW -m tcp --dport 8443 -j ACCEPT
--A INPUT -p tcp -m state --state NEW -m tcp --dport 443 -j ACCEPT
--A INPUT -p tcp -m state --state NEW -m tcp --dport 80 -j ACCEPT
--A FORWARD -i {} -o {} -j ACCEPT
-COMMIT
-""".format(int2, int1, int2)
-
-    # Writing conf
-    with open('conf/iptables-configuration', 'w') as fconf:
-        fconf.write(conf)
-
-
