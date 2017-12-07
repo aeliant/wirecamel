@@ -12,6 +12,7 @@ DEPS = [
     'dnsmasq',
     'aircrack-ng',
     'iwconfig',
+    'whois'
 ]
 
 
@@ -115,8 +116,7 @@ def get_network_interfaces():
 # Whois informations
 def whois_information(ip):
     # Executing whois command
-    proc = subprocess.Popen(['whois', ip], stdout=subprocess.PIPE)
-    result = proc.stdout.read()
+    result = subprocess.check_output(['whois', ip])
 
     # Retrieving information
     info = {
