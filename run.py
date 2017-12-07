@@ -6,9 +6,10 @@ import codecs
 import re
 import pprint
 import json
+import subprocess
 
-from os import listdir, mkdir, system, remove
-from os.path import isfile, isdir, join, getmtime, basename
+from os import listdir, system
+from os.path import isfile, join, getmtime
 from dateutil import tz
 from tabulate import tabulate
 
@@ -32,52 +33,53 @@ class TlsSharkInteractive(cmd.Cmd):
     """
 
     # Initial configuration
-    prompt = "wirecamel> "
+    prompt = "wirecamel> "  # Prompt
 
     # Hostapd default param
     hostapd_options = {
-        'interface': '',
-        'driver': '',
-        'ssid': '',
-        'channel': '',
-        'macaddr_acl': '',
-        'hw_mode': '',
-        'auth_algs': '',
-        'wpa': '',
-        'wpa_key_mgmt': '',
-        'wpa_passphrase': '',
-        'wpa_pairwise': '',
-        'logger_syslog': '',
-        'logger_syslog_level': '',
-        'logger_stdout': '',
-        'logger_stdout_level': ''
+        'interface': '',            # Interface for hostapd
+        'driver': '',               # Driver to use for the access point
+        'ssid': '',                 # SSID for the access point
+        'channel': '',              # Channel of the access point
+        'macaddr_acl': '',          # MAC address filter ?
+        'hw_mode': '',              # Hardware mode (a = IEEE 802.11a, b = IEEE 802.11b, g = IEEE 802.11g)
+        'auth_algs': '',            # Open Wifi or not
+        'wpa': '',                  # Use of wpa ?
+        'wpa_key_mgmt': '',         # Key mangement for the algorithm to use
+        'wpa_passphrase': '',       # Passphrase for the access point
+        'wpa_pairwise': '',         # WPA's data encryption
+        'logger_syslog': '',        # Enable syslog for log management?
+        'logger_syslog_level': '',  # Syslog level
+        'logger_stdout': '',        # Enable stdout for log management ?
+        'logger_stdout_level': ''   # Stdout log level
     }
 
     # Attributes
     filters = {
-        'source_ip': '',
-        'source_port': '',
-        'dest_ip': '',
-        'dest_port': '',
-        'host': ''
+        'source_ip': '',            # Source IP to filter
+        'source_port': '',          # Source port to filter
+        'dest_ip': '',              # Destination IP to filter
+        'dest_port': '',            # Destination port to filter
+        'host': ''                  # Host to filter
     }
 
     # Main configuration variables
+    # TODO: Change interfaces name for differenciation
     config = {
         'interface': '',
-        'int_ap': '', # TODO: Change with this for differenciation
-        'save_dir': 'saved_logs/',
-        'max_result': None,
-        'range_result': []
+        'int_ap': '',               # Interface for the access point
+        'bridge': '',               # Interface that will be used as a bridge to the internet
+        'max_result': None,         # Max result to print
+        'range_result': []          # Range result to print (5th to 10th for example)
     }
 
-    sslsplit_started = False
     files_association = {}
     headers = {}
-    subhostapd = None
-    subssl = None
 
-    net_man_started = False
+    subhostapd = None               # Used to stop hostapd subprocess
+    subssl = None                   # Used to stop sslsplit subprocess
+
+    net_man_started = False         # Used to know if NetworkManager was started before launching SSLSplit
 
     # Initial configuration
     def preloop(self):
@@ -171,11 +173,11 @@ class TlsSharkInteractive(cmd.Cmd):
                     # Specific handling for uri
                     elif arguments[0] == 'save_dir':
                         if value.startswith("save_dir '"):
-                            self.config['save_dir'] = util.purify_uri(value[len("save_dir '"):-1])
+                            sslsplit.SAVE_DIR = util.purify_uri(value[len("save_dir '"):-1])
                         elif value.startswith("save_dir \""):
-                            self.config['save_dir'] = util.purify_uri(value[len("save_dir \""):-1])
+                            sslsplit.SAVE_DIR = util.purify_uri(value[len("save_dir \""):-1])
                         else:
-                            self.config['save_dir'] = util.purify_uri(arguments[1])
+                            sslsplit.SAVE_DIR = util.purify_uri(arguments[1])
                     else:
                         # Setting value for the given parameter
                         self.config[arguments[0]] = arguments[1]
@@ -243,14 +245,9 @@ class TlsSharkInteractive(cmd.Cmd):
         """start_sslsplit
         Start SSL Split as an access point
         """
-        if len(self.config['interface']) != 0:
+        if not isinstance(self.subssl, subprocess.Popen):
             # Starting SSL Split
-            (self.subhostapd, self.subssl) = sslsplit.start(
-                self.config['interface']
-            )
-
-            # Setting started for sslsplit
-            self.sslsplit_started = True
+            (self.subhostapd, self.subssl) = sslsplit.start(self.config['interface'])
         else:
             style.fail("Please setup interface for the access point")
 
@@ -259,7 +256,7 @@ class TlsSharkInteractive(cmd.Cmd):
         """stop_sslsplit
         Stop the access point and SSL Split
         """
-        if not self.sslsplit_started:
+        if self.subssl is None:
             style.fail("SSL Split and hostapd not started")
         else:
             # Stoppings
@@ -268,9 +265,6 @@ class TlsSharkInteractive(cmd.Cmd):
                 self.subhostapd,
                 self.net_man_started
             )
-
-            # Setting sslsplit started to false
-            self.sslsplit_started = False
 
     # Reset Filters
     def do_reset_filters(self, line):
@@ -288,10 +282,9 @@ class TlsSharkInteractive(cmd.Cmd):
         """
         if value:
             if len(self.files_association) == 0:
-                style.fail(
-                    "The list is empty. Please first use show_connections to parse existant files."
-                )
+                style.fail("The list is empty. Please first use show_connections to parse existing files.")
             elif value in self.files_association:
+                # Retrieving log filename
                 log_filename = self.files_association[str(value)]
 
                 # Opening the file
@@ -331,7 +324,7 @@ class TlsSharkInteractive(cmd.Cmd):
                     filename = ""
                     while len(filename) == 0:
                         filename = raw_input("Filename: ")
-                        if len(filename) != 0 and isfile("{}{}".format(self.config['save_dir'], filename)):
+                        if len(filename) != 0 and isfile("{}{}".format(sslsplit.SAVE_DIR, filename)):
                             style.fail(
                                 "{}{} already exists, please choose a new filename".format(
                                     self.config['save_dir'], filename
@@ -339,12 +332,8 @@ class TlsSharkInteractive(cmd.Cmd):
                             )
                             filename = ""
 
-                    # Checking if saving directory exists and create one if needed
-                    if not isdir(self.config['save_dir']):
-                        mkdir(self.config['save_dir'])
-
                     # Opening the file for write operation
-                    save_file = codecs.open("{}{}".format(self.config['save_dir'], filename), 'w', encoding='utf-8')
+                    save_file = codecs.open("{}{}".format(sslsplit.SAVE_DIR, filename), 'w', encoding='utf-8')
 
                     # Checking what the user want to save
                     table_tosave = []
@@ -354,7 +343,7 @@ class TlsSharkInteractive(cmd.Cmd):
                         save_file.write(core.printable_headers(self.headers[arguments[0]]))
 
                     # Closing the file
-                    style.print_call_info(0, "", "Saved successfuly ({}{})".format(self.config['save_dir'], filename))
+                    style.print_call_info(0, "", "Saved successfuly ({}{})".format(sslsplit.SAVE_DIR, filename))
                     save_file.close()
                 else:
                     style.fail("Usage: save [requests|responses|stream]")
@@ -370,6 +359,7 @@ class TlsSharkInteractive(cmd.Cmd):
     # TODO: save all streams
     def save_all_streams(self, headers):
         pprint.pprint(headers)
+        print("TODO")
 
     # Allow the user to print responses, requests or the entire stream
     def do_print(self, value):
@@ -410,6 +400,9 @@ class TlsSharkInteractive(cmd.Cmd):
 
     # Print statistics for current session
     def do_stats(self, line):
+        """
+        Print statistics for current sessions (Total POST, GET, PUT, etc.)
+        """
         if len(self.files_association) != 0:
             stats_table = {}
             for log in self.files_association.values():
@@ -503,7 +496,7 @@ class TlsSharkInteractive(cmd.Cmd):
                 print
 
         else:
-            style.fail("Please run show_connections first in order to print statistics.")
+            style.fail("Please run `show_connections` first in order to print statistics.")
 
     # Show connections made since SSL Split is launched
     def do_show_connections(self, line):
@@ -511,7 +504,7 @@ class TlsSharkInteractive(cmd.Cmd):
         Show connections made since SSL Split is launched
         """
         from_zone = tz.gettz('UTC')
-        to_zone = tz.gettz('Europe/Paris')
+        to_zone = tz.gettz('Europe/Paris')  # TODO: Timezone ?
 
         # Reseting (if needed) headers
         self.headers = {}
@@ -646,9 +639,10 @@ class TlsSharkInteractive(cmd.Cmd):
         while len(filename) == 0:
             filename = raw_input("Name for the backup (without extension)? ")
 
+        # Saving
         sslsplit.save_logs(filename)
 
-        style.print_call_info(0, "tar", "Saved backup and cleaned directory".format(self.config['save_dir']))
+        style.print_call_info(0, "tar", "Saved backup and cleaned directory".format(sslsplit.SAVE_DIR))
 
     # Base 64 decoding function
     @staticmethod
@@ -657,7 +651,7 @@ class TlsSharkInteractive(cmd.Cmd):
         Decode a string, base64 encoded
         """
         newvalue = value.decode("base64")
-        print newvalue
+        print(newvalue)
 
     # Prettify JSON formatted text
     @staticmethod
