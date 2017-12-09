@@ -1,3 +1,4 @@
-connections.log
-sslsplit/
+build/
+dist/
+Wirecamel.egg-info/
 .idea/
