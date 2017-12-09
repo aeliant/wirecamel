@@ -2,7 +2,6 @@
 # coding=utf-8
 import cmd
 import codecs
-import getpass
 import json
 import pprint
 import re
@@ -687,12 +686,3 @@ class WirecamelInteractive(cmd.Cmd):
         End Of File function
         """
         return True
-
-
-if __name__ == "__main__":
-    # Checking if running as root
-    if 'root' != getpass.getuser():
-        print("Root privileges needed.")
-        exit(1)
-
-    WirecamelInteractive().cmdloop()
