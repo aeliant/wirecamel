@@ -6,7 +6,7 @@ import re
 from os.path import isfile
 from os import unlink
 
-WIRECAMEL_CONF = 'conf/dnsmasq.conf'
+WIRECAMEL_CONF = '/root/.wirecamel/conf/dnsmasq.conf'
 ACTUAL_CONF = '/etc/dnsmasq.conf'
 TMP_CONF = '/tmp/wirecamel-dnsmasq.conf'
 

@@ -3,7 +3,7 @@ import subprocess
 
 from string import Template
 
-SSLSPLIT_CONF = 'conf/iptables-configuration'
+SSLSPLIT_CONF = '/root/.wirecamel/conf/iptables-configuration'
 TMP_RULES = '/tmp/wirecamel-iptables-to-restore'
 
 

@@ -2,7 +2,7 @@
 import re
 import subprocess
 
-CONF = 'conf/hostapd.conf'
+CONF = '/root/.wirecamel/conf/hostapd.conf'
 XTERM_TITLE = 'Hostapd console'
 
 

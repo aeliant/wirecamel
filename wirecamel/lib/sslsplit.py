@@ -14,25 +14,26 @@ from os import unlink, listdir, mkdir
 SSL_PORT = '8443'
 TCP_PORT = '8080'
 
-MAIN_DIR = 'sslsplit/'
-KEYS_DIR = 'sslsplit/keys/'
-LOGS_DIR = 'sslsplit/logs/'
-SAVE_DIR = 'sslsplit/saved_logs/'
-CONN_FILE = 'sslsplit/connections.log'
+MAIN_PATH = '/root/.wirecamel/'
+MAIN_DIR = '/root/.wirecamel/sslsplit/'
+KEYS_DIR = '/root/.wirecamel/sslsplit/keys/'
+LOGS_DIR = '/root/.wirecamel/sslsplit/logs/'
+SAVE_DIR = '/root/.wirecamel/sslsplit/saved_logs/'
+CONN_FILE = '/root/.wirecamel/sslsplit/connections.log'
 
 XTERM_TITLE = 'SSLSplit Console'
 
 
 # Create the sslsplit directory structure
-# TODO: Create structure in personnal directory ? (~/.wirecamel)
 def create_structure():
     # Checking that directory doesn't exists (if already exists, was created by this script)
     if not isdir(MAIN_DIR):
         style.warning("SSLSplit structure missing, creating it...")
-        mkdir(MAIN_DIR)  # Creating main directory
-        mkdir(KEYS_DIR)  # Creating certs directory
-        mkdir(LOGS_DIR)  # Creating logs directory
-        mkdir(SAVE_DIR)  # Creating the save directory
+        mkdir(MAIN_PATH)    # Creating wirecamel directory in root dir
+        mkdir(MAIN_DIR)     # Creating main directory
+        mkdir(KEYS_DIR)     # Creating certs directory
+        mkdir(LOGS_DIR)     # Creating logs directory
+        mkdir(SAVE_DIR)     # Creating the save directory
 
 
 # Generate certificates for ssl split
