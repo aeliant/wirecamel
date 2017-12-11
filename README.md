@@ -10,6 +10,9 @@
                                                         ||_  \\|_  \\_
                                                         '--' '--'' '--'
 
+## Warning
+Documentation is not yet finished. Fell free to contact me until it's written.
+
 ## Introduction
 Wirecamel is a Python based project aimed to automate the use of SSL Split in an IoT security auditing context and
 help retrieve human readable data.
@@ -22,7 +25,7 @@ said previously, the result is a human readable an easy to understand by non tec
 ### Requirements
 First of all, Python 2.7 and Pip are required. Follow the next instructions to install required dependencies :
 
-`$ pip install iso8601 whois tabulate python-dateutil`
+`$ python setup.py install`
 
 For the rest, the script check unmet dependencies and ask the user to install it (on a Debian based system, other Linux
 distributions are not handled yet).
