@@ -32,7 +32,7 @@ class WirecamelInteractive(cmd.Cmd):
     """
 
     # Initial configuration
-    prompt = "wirecamel> "  # Prompt
+    prompt = "wirecamel> "          # Prompt
 
     # Hostapd default param
     hostapd_options = {
@@ -122,7 +122,8 @@ class WirecamelInteractive(cmd.Cmd):
             # Printing available interfaces
             print
             for wi in wireless_interfaces:
-                print("[{}] {}".format(wireless_interfaces.index(wi), wi))
+                active = '(active)' if net.is_active(wi) else '(not active)'
+                print("[{}] {} {}".format(wireless_interfaces.index(wi), wi, active))
 
             print
             user_choice = -1
