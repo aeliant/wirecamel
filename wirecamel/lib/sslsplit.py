@@ -19,6 +19,9 @@ LOGS_DIR = '/root/.wirecamel/sslsplit/logs/'
 SAVE_DIR = '/root/.wirecamel/sslsplit/saved_logs/'
 CONN_FILE = '/root/.wirecamel/sslsplit/connections.log'
 
+CERT_EXPIRATION = '360'
+PRIV_SIZE = '4096'
+
 XTERM_TITLE = 'SSLSplit Console'
 
 
@@ -42,7 +45,10 @@ def generate_certs():
     # Private key
     style.loading("Generating private key...")
     p = subprocess.Popen(
-        "openssl genrsa -out {}ca.key 4096".format(KEYS_DIR).split(" "),
+        [
+            'openssl', 'genrsa',
+            '-out', "{}ca.key".format(KEYS_DIR), PRIV_SIZE,
+        ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE
     )
@@ -51,10 +57,14 @@ def generate_certs():
     # Public key
     style.loading("Generating public key...")
     p = subprocess.Popen(
-        "openssl req -new -x509 -days 1826 -out {}ca.crt -key {}ca.key -subj /CN=wirecamel".format(
-            KEYS_DIR,
-            KEYS_DIR
-        ).split(" "),
+        [
+            'openssl', 'req',
+            '-new', '-x509',
+            '-days', CERT_EXPIRATION,
+            '-out', "{}ca.crt".format(KEYS_DIR),
+            '-key', "{}ca.key".format(KEYS_DIR),
+            '-subj', '/CN=wirecamel'
+        ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE
     )
@@ -64,6 +74,7 @@ def generate_certs():
 # Start SSL Split
 def start(interface):
     # Checking processes with airmon-ng
+    # TODO: Remove, will cause to cancel actual connection
     res = net.kill_unwanted()
     style.print_call_info(res, "airmon-ng", "Killed unwanted processes.")
 
