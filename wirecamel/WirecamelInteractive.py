@@ -103,7 +103,8 @@ class WirecamelInteractive(cmd.Cmd):
     # Allow the user to configure interfaces (access point and internet access)
     def do_init_interfaces(self, value):
         """
-        # TODO: Documentation
+        Allow the user to configure interfaces, i.e. which one will be used for spawning the access point and which
+        will be used for the bridge.
         """
         # Retrieving interfaces (wireless and wired)
         wireless_interfaces = util.get_wireless_interface()
