@@ -10,19 +10,19 @@ import tarfile
 from os.path import isfile, basename, isdir
 from os import unlink, listdir, mkdir
 
-SSL_PORT = '8443'
-TCP_PORT = '8080'
+SSL_PORT = '8443'                                           # Port that will be used for NAT (SSL)
+TCP_PORT = '8080'                                           # Port that will be used for NAT (TCP)
 
-MAIN_DIR = '/root/.wirecamel/sslsplit/'
-KEYS_DIR = '/root/.wirecamel/sslsplit/keys/'
-LOGS_DIR = '/root/.wirecamel/sslsplit/logs/'
-SAVE_DIR = '/root/.wirecamel/sslsplit/saved_logs/'
-CONN_FILE = '/root/.wirecamel/sslsplit/connections.log'
+MAIN_DIR = '/root/.wirecamel/sslsplit/'                     # SSLSplit main directory
+KEYS_DIR = '/root/.wirecamel/sslsplit/keys/'                # Certificates directory
+LOGS_DIR = '/root/.wirecamel/sslsplit/logs/'                # SSLSplit logs directory
+SAVE_DIR = '/root/.wirecamel/sslsplit/saved_logs/'          # SSLSplit saved logs directory
+CONN_FILE = '/root/.wirecamel/sslsplit/connections.log'     # SSLSplit connections.log file
 
-CERT_EXPIRATION = '360'
-PRIV_SIZE = '4096'
+CERT_EXPIRATION = '360'                                     # Duration for certificate (in days)
+PRIV_SIZE = '4096'                                          # Private key size (in bits)
 
-XTERM_TITLE = 'SSLSplit Console'
+XTERM_TITLE = 'SSLSplit Console'                            # Title that will be used when xterm console will be spawned
 
 
 # Create the sslsplit directory structure
@@ -30,10 +30,10 @@ def create_structure():
     # Checking that directory doesn't exists (if already exists, was created by this script)
     if not isdir(MAIN_DIR):
         style.warning("SSLSplit structure missing, creating it...")
-        mkdir(MAIN_DIR)     # Creating main directory
-        mkdir(KEYS_DIR)     # Creating certs directory
-        mkdir(LOGS_DIR)     # Creating logs directory
-        mkdir(SAVE_DIR)     # Creating the save directory
+        mkdir(MAIN_DIR)                                     # Creating main directory
+        mkdir(KEYS_DIR)                                     # Creating certs directory
+        mkdir(LOGS_DIR)                                     # Creating logs directory
+        mkdir(SAVE_DIR)                                     # Creating the save directory
 
 
 # Generate certificates for ssl split
@@ -42,7 +42,7 @@ def generate_certs():
     if isfile("{}ca.key".format(KEYS_DIR)) and isfile("{}ca.crt".format(KEYS_DIR)):
         return
 
-    # Private key
+    # Private key generation
     style.loading("Generating private key...")
     p = subprocess.Popen(
         [
@@ -54,7 +54,7 @@ def generate_certs():
     )
     p.wait()
 
-    # Public key
+    # Public key generation
     style.loading("Generating public key...")
     p = subprocess.Popen(
         [

@@ -103,8 +103,8 @@ class WirecamelInteractive(cmd.Cmd):
     # Allow the user to configure interfaces (access point and internet access)
     def do_init_interfaces(self, value):
         """
-        Allow the user to configure interfaces, i.e. which one will be used for spawning the access point and which
-        will be used for the bridge.
+        Allow the user to configure interfaces, i.e. which one will be
+        used for spawning the access point and which will be used for the bridge.
         """
         # Retrieving interfaces (wireless and wired)
         wireless_interfaces = util.get_wireless_interface()
@@ -113,9 +113,6 @@ class WirecamelInteractive(cmd.Cmd):
         # If only one interface, selecting it for the access point
         if len(wireless_interfaces) == 1:
             # Setting the interface for AP in conf
-            # TODO: Remove
-            self.config['interface'] = wireless_interfaces[0]
-
             self.config['int_ap'] = wireless_interfaces[0]
             self.config['bridge'] = 'lo'
         else:
@@ -133,8 +130,10 @@ class WirecamelInteractive(cmd.Cmd):
                 user_choice = raw_input("Select a wireless interface for the access point: ")
                 try:
                     user_choice = int(user_choice)
-                    self.config['interface'] = wireless_interfaces[user_choice]
+
+                    self.config['int_ap'] = wireless_interfaces[user_choice]
                     self.hostapd_options['interface'] = wireless_interfaces[user_choice]
+
                 except ValueError:
                     user_choice = -1
                     continue
@@ -251,10 +250,11 @@ class WirecamelInteractive(cmd.Cmd):
         """start_sslsplit
         Start SSL Split as an access point
         """
+        # TODO: Optimize
         # Checking if sslsplit already started
         if not isinstance(self.subssl, subprocess.Popen):
             # Starting SSL Split
-            (self.subhostapd, self.subssl) = sslsplit.start(self.config['interface'])
+            (self.subhostapd, self.subssl) = sslsplit.start(self.config['int_ap'])
         else:
             style.fail("Please setup interface for the access point")
 
