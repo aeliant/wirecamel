@@ -56,3 +56,10 @@ def interfaces():
     )
 
     return data.strip().split('\n')
+
+
+# Check if given interface is connected to an AP
+def is_active(interface):
+    output = subprocess.check_output(['iwconfig', interface], stderr=subprocess.PIPE)
+    essid = re.findall(r'ESSID:\"(.*)\"', output)
+    return len(essid) != 0
