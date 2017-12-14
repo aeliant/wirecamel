@@ -102,16 +102,21 @@ class WirecamelInteractive(cmd.Cmd):
 
     # Allow the user to configure interfaces (access point and internet access)
     def do_init_interfaces(self, value):
-        # TODO: Check if access point mode available
+        """
+        # TODO: Documentation
+        """
         # Retrieving interfaces (wireless and wired)
         wireless_interfaces = util.get_wireless_interface()
         net_interfaces = util.get_network_interfaces()
 
         # If only one interface, selecting it for the access point
-        # TODO: One interface ? -> loopback
         if len(wireless_interfaces) == 1:
             # Setting the interface for AP in conf
+            # TODO: Remove
             self.config['interface'] = wireless_interfaces[0]
+
+            self.config['int_ap'] = wireless_interfaces[0]
+            self.config['bridge'] = 'lo'
         else:
             # Printing available interfaces
             print
@@ -244,6 +249,7 @@ class WirecamelInteractive(cmd.Cmd):
         """start_sslsplit
         Start SSL Split as an access point
         """
+        # Checking if sslsplit already started
         if not isinstance(self.subssl, subprocess.Popen):
             # Starting SSL Split
             (self.subhostapd, self.subssl) = sslsplit.start(self.config['interface'])
@@ -258,12 +264,16 @@ class WirecamelInteractive(cmd.Cmd):
         if self.subssl is None:
             style.fail("SSL Split and hostapd not started")
         else:
-            # Stoppings
+            # Stopping
             sslsplit.stop(
                 self.subssl,
                 self.subhostapd,
                 self.net_man_started
             )
+
+            # Resetting processes
+            self.subssl = None
+            self.subhostapd = None
 
     # Reset Filters
     def do_reset_filters(self, line):
