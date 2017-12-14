@@ -1,5 +1,4 @@
 # coding=utf-8
-import os
 import style
 import subprocess
 import iptables
