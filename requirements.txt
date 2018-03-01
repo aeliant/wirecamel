@@ -1,0 +1,6 @@
+dateutils==0.6.6
+iso8601==0.1.12
+python-dateutil==2.6.1
+pytz==2018.3
+six==1.11.0
+tabulate==0.8.2
