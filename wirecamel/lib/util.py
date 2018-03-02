@@ -1,50 +1,37 @@
 # coding=utf-8
+from wirecamel import CONF_DIR
+
+import yaml
 import re
 import subprocess
-
 import style
 
-# List of required dependencies
-DEPS = [
-    'hostapd',
-    'sslsplit',
-    'dhcpd',
-    'xterm',
-    'dnsmasq',
-    'aircrack-ng',
-    'iwconfig',
-    'whois'
-]
-
-
-# Checking Linux distribution
 def check_distro():
-    p = subprocess.Popen(
-        "lsb_release -a",
-        shell=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE
-    )
-    res = re.search("Distributor ID:\s+([a-zA-Z]+)", p.stdout.read())
+    """ Check which distribution the user run Wirecamel """
+    # retrieving linux distribution
+    from platform import linux_distribution
+    distro = linux_distribution()[0]
 
-    return {
-        'debian': 'Debian' == res.group(1),
-        'ubuntu': 'Ubuntu' == res.group(1),
-        'mageia': 'Mageia' == res.group(1)
-    }
+    # returning value
+    return distro if distro != '' else False
 
+def check_dependencies(distrib):
+    """ Check if required dependencies are installed and ask the user ot install them if needed """
+    not_installed   = []
+    user_choice     = ['y', 'Y', 'n', 'N']
 
-# Check dependencies and ask to install if needed
-def check_dependencies():
-    not_installed = []
-    user_choice = ['y', 'Y', 'n', 'N']
+    # loading required deps
+    deps = yaml.safe_load(
+        open('{0}/packages.yaml'.format(CONF_DIR), 'r')
+    )['dependencies-{0}'.format(distrib)]
 
     # For each dep, checking installed
-    for dep in DEPS:
+    for dep in deps:
         p = subprocess.Popen(
-            "which {}".format(dep),
-            shell=True,
-            stdout=subprocess.PIPE
+            "which {0}".format(dep),
+            shell   = True,
+            stdout  = subprocess.PIPE,
+            stderr  = subprocess.PIPE
         )
 
         # Appending missing packages
@@ -56,7 +43,7 @@ def check_dependencies():
         # Printing missing packages
         print("The following packages are missing:")
         for pack in not_installed:
-            print("\t * {}".format(pack))
+            print("\t * {0}".format(pack))
 
         # Asking to install
         choice = 'a'
@@ -69,7 +56,8 @@ def check_dependencies():
             return
         else:
             # Debian & Ubuntu based
-            if check_distro()['debian'] or check_distro()['ubuntu']:
+            if check_distro() == 'debian' or check_distro() == 'ubuntu':
+                print('installing')
                 # Base command
                 cmd = "apt-get install -y".split(" ")
 
@@ -86,8 +74,13 @@ def check_dependencies():
 
                 return
             else:
-                print("Not yet implemented. Please install packages manually.")
+                if not check_distro():
+                    print("Unrecognized linux distribution. Please install packages manually.")
+                else:
+                    print("Please install packages manually, since your distribution is not handled yet.")
+
                 style.fail('Aborting.')
+                exit(1)
                 return
     else:
         return
