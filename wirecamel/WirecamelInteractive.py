@@ -1,19 +1,17 @@
 #!/usr/bin/env python
 # coding=utf-8
+from dateutil   import tz
+from os         import listdir, system
+from os.path    import isfile, join, getmtime, abspath
+from tabulate   import tabulate
+from lib        import style, sslsplit, util, core, hostapd, iptables, net
+
 import cmd
 import codecs
 import json
-import pprint
 import re
 import subprocess
-from dateutil import tz
-from os import listdir, system
-from os.path import isfile, join, getmtime
-
-from tabulate import tabulate
-
-from lib import style, sslsplit, util, core, hostapd, iptables, net
-
+import pprint
 
 class WirecamelInteractive(cmd.Cmd):
     intro = """
@@ -32,26 +30,27 @@ class WirecamelInteractive(cmd.Cmd):
     """
 
     # Initial configuration
-    prompt = "wirecamel> "  # Prompt
+    prompt = "wirecamel> "          # Prompt
 
     # Hostapd default param
-    hostapd_options = {
-        'interface': '',            # Interface for hostapd
-        'driver': '',               # Driver to use for the access point
-        'ssid': '',                 # SSID for the access point
-        'channel': '',              # Channel of the access point
-        'macaddr_acl': '',          # MAC address filter ?
-        'hw_mode': '',              # Hardware mode (a = IEEE 802.11a, b = IEEE 802.11b, g = IEEE 802.11g)
-        'auth_algs': '',            # Open Wifi or not
-        'wpa': '',                  # Use of wpa ?
-        'wpa_key_mgmt': '',         # Key mangement for the algorithm to use
-        'wpa_passphrase': '',       # Passphrase for the access point
-        'wpa_pairwise': '',         # WPA's data encryption
-        'logger_syslog': '',        # Enable syslog for log management?
-        'logger_syslog_level': '',  # Syslog level
-        'logger_stdout': '',        # Enable stdout for log management ?
-        'logger_stdout_level': ''   # Stdout log level
-    }
+    hostapd_options = json.load(open('conf/hostapd.json', 'r'))
+    # hostapd_options = {
+    #     'interface': '',            # Interface for hostapd
+    #     'driver': '',               # Driver to use for the access point
+    #     'ssid': '',                 # SSID for the access point
+    #     'channel': '',              # Channel of the access point
+    #     'macaddr_acl': '',          # MAC address filter ?
+    #     'hw_mode': '',              # Hardware mode (a = IEEE 802.11a, b = IEEE 802.11b, g = IEEE 802.11g)
+    #     'auth_algs': '',            # Open Wifi or not
+    #     'wpa': '',                  # Use of wpa ?
+    #     'wpa_key_mgmt': '',         # Key mangement for the algorithm to use
+    #     'wpa_passphrase': '',       # Passphrase for the access point
+    #     'wpa_pairwise': '',         # WPA's data encryption
+    #     'logger_syslog': '',        # Enable syslog for log management?
+    #     'logger_syslog_level': '',  # Syslog level
+    #     'logger_stdout': '',        # Enable stdout for log management ?
+    #     'logger_stdout_level': ''   # Stdout log level
+    # }
 
     # Attributes
     filters = {

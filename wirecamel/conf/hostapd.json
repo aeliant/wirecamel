@@ -1,0 +1,18 @@
+{
+  "interface"           : "wlan0",
+  "driver"              : "nl80211",
+  "ssid"                : "AuditIotCVO",
+  "channel"             : 7,
+  "macaddr_acl"         : 0,
+  "hw_mode"             : "g",
+  "auth_algs"           : 1,
+  "rsn_pairwise"        : "TKIP",
+  "logger_stdout_level" : 2,
+  "logger_stdout"       : 1,
+  "logger_syslog_level" : 2,
+  "logger_syslog"       : 1,
+  "wpa"                 : 3,
+  "wpa_key_mgmt"        : 1,
+  "wpa_passphrase"      : "Jr0W2WsZR",
+  "wpa_pairwise"        : "CCMP"
+}
