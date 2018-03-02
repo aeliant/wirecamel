@@ -2,9 +2,10 @@
 # coding=utf-8
 from dateutil   import tz
 from os         import listdir, system
-from os.path    import isfile, join, getmtime, abspath
+from os.path    import isfile, join, getmtime
 from tabulate   import tabulate
 from lib        import style, sslsplit, util, core, hostapd, iptables, net
+from .          import CONF_DIR
 
 import cmd
 import codecs
@@ -12,6 +13,8 @@ import json
 import re
 import subprocess
 import pprint
+import yaml
+
 
 class WirecamelInteractive(cmd.Cmd):
     intro = """
@@ -30,54 +33,32 @@ class WirecamelInteractive(cmd.Cmd):
     """
 
     # Initial configuration
-    prompt = "wirecamel> "          # Prompt
-
-    # Hostapd default param
-    hostapd_options = json.load(open('conf/hostapd.json', 'r'))
-    # hostapd_options = {
-    #     'interface': '',            # Interface for hostapd
-    #     'driver': '',               # Driver to use for the access point
-    #     'ssid': '',                 # SSID for the access point
-    #     'channel': '',              # Channel of the access point
-    #     'macaddr_acl': '',          # MAC address filter ?
-    #     'hw_mode': '',              # Hardware mode (a = IEEE 802.11a, b = IEEE 802.11b, g = IEEE 802.11g)
-    #     'auth_algs': '',            # Open Wifi or not
-    #     'wpa': '',                  # Use of wpa ?
-    #     'wpa_key_mgmt': '',         # Key mangement for the algorithm to use
-    #     'wpa_passphrase': '',       # Passphrase for the access point
-    #     'wpa_pairwise': '',         # WPA's data encryption
-    #     'logger_syslog': '',        # Enable syslog for log management?
-    #     'logger_syslog_level': '',  # Syslog level
-    #     'logger_stdout': '',        # Enable stdout for log management ?
-    #     'logger_stdout_level': ''   # Stdout log level
-    # }
+    prompt = "wirecamel> "                  # Prompt
 
     # Attributes
     filters = {
-        'source_ip': '',            # Source IP to filter
-        'source_port': '',          # Source port to filter
-        'dest_ip': '',              # Destination IP to filter
-        'dest_port': '',            # Destination port to filter
-        'host': ''                  # Host to filter
+        'source_ip'     : '',               # Source IP to filter
+        'source_port'   : '',               # Source port to filter
+        'dest_ip'       : '',               # Destination IP to filter
+        'dest_port'     : '',               # Destination port to filter
+        'host'          : ''                # Host to filter
     }
 
     # Main configuration variables
-    # TODO: Change interfaces name for differenciation
     config = {
-        'interface': '',
-        'int_ap': '',               # Interface for the access point
-        'bridge': '',               # Interface that will be used as a bridge to the internet
-        'max_result': None,         # Max result to print
-        'range_result': []          # Range result to print (5th to 10th for example)
+        'int_ap'        : '',               # Interface for the access point
+        'bridge'        : '',               # Interface that will be used as a bridge to the internet
+        'max_result'    : None,             # Max result to print
+        'range_result'  : []                # Range result to print (5th to 10th for example)
     }
 
-    files_association = {}
-    headers = {}
+    files_association   = {}                # Used to associate files
+    headers             = {}                # Used to store headers
 
-    subhostapd = None               # Used to stop hostapd subprocess
-    subssl = None                   # Used to stop sslsplit subprocess
+    subhostapd          = None              # Used to stop hostapd subprocess
+    subssl              = None              # Used to stop sslsplit subprocess
 
-    net_man_started = False         # Used to know if NetworkManager was started before launching SSLSplit
+    net_man_started     = False             # Used to know if NetworkManager was started before launching SSLSplit
 
     # Initial configuration
     def preloop(self):
@@ -85,7 +66,8 @@ class WirecamelInteractive(cmd.Cmd):
         self.net_man_started = net.check_net_manager()
 
         # Checking if dependencies are installed
-        util.check_dependencies()
+        # TODO: Check distro before launching deps check
+        util.check_dependencies('debian')
 
         # Creating SSL Split directory structure if needed
         sslsplit.create_structure()
@@ -94,28 +76,25 @@ class WirecamelInteractive(cmd.Cmd):
         sslsplit.generate_certs()
 
         # Reading hostapd configuration file
-        self.hostapd_options = hostapd.load_config()
+        self.hostapd_options = yaml.safe_load(open('{0}/hostapd.yaml'.format(CONF_DIR)))
 
         # Clearing terminal
         system("clear")
 
     # Allow the user to configure interfaces (access point and internet access)
     def do_init_interfaces(self, value):
-        """
-        # TODO: Documentation
+        """init_interfaces
+        Allow the user to initialize interfaces to be used by Wirecamel
         """
         # Retrieving interfaces (wireless and wired)
         wireless_interfaces = util.get_wireless_interface()
-        net_interfaces = util.get_network_interfaces()
+        net_interfaces      = util.get_network_interfaces()
 
         # If only one interface, selecting it for the access point
         if len(wireless_interfaces) == 1:
             # Setting the interface for AP in conf
-            # TODO: Remove
-            self.config['interface'] = wireless_interfaces[0]
-
-            self.config['int_ap'] = wireless_interfaces[0]
-            self.config['bridge'] = 'lo'
+            self.config['int_ap']       = wireless_interfaces[0]
+            self.config['bridge']       = 'lo'
         else:
             # Printing available interfaces
             print
@@ -129,9 +108,9 @@ class WirecamelInteractive(cmd.Cmd):
             while user_choice < 0 or user_choice >= len(wireless_interfaces):
                 user_choice = raw_input("Select a wireless interface for the access point: ")
                 try:
-                    user_choice = int(user_choice)
-                    self.config['interface'] = wireless_interfaces[user_choice]
-                    self.hostapd_options['interface'] = wireless_interfaces[user_choice]
+                    user_choice                         = int(user_choice)
+                    self.config['int_ap']               = wireless_interfaces[user_choice]
+                    self.hostapd_options['interface']   = wireless_interfaces[user_choice]
                 except ValueError:
                     user_choice = -1
                     continue
