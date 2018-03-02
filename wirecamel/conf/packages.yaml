@@ -1,0 +1,9 @@
+dependencies-debian:
+  - 'hostapd'
+  - 'sslsplit'
+  - 'dhcpd'
+  - 'xterm'
+  - 'dnsmasq'
+  - 'aircrack-ng'
+  - 'iwconfig'
+  - 'whois'

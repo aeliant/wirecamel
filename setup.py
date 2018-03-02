@@ -11,7 +11,13 @@ setup(name              = 'Wirecamel',
       version           = '1.0',
       packages          = ['wirecamel', 'wirecamel/lib'],
       data_files        = [
-          ('/root/.wirecamel/conf', ['wirecamel/conf/hostapd.json', 'wirecamel/conf/iptables-configuration'])
+          (
+              '/root/.wirecamel/conf',
+              [
+                  'wirecamel/conf/hostapd.yaml',
+                  'wirecamel/conf/iptables-configuration',
+                  'wirecamel/conf/packages.yaml'
+              ])
       ],
       install_requires  = [
           'iso8601',
@@ -21,7 +27,7 @@ setup(name              = 'Wirecamel',
       ],
       entry_points      = {
           'console_scripts': [
-              'wirecamel = wirecamel.__main__:main'
+              'wirecamel = wirecamel.wirecamel:main'
           ]
       },
       classifiers       = [

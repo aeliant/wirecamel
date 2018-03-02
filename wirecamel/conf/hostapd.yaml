@@ -1,0 +1,16 @@
+interface: wlan0          # Interface for hostapd
+driver: nl80211           # Driver to use for the access point
+ssid: AuditIotCVO         # SSID for the access point
+channel: 7                # Channel of the access point
+macaddr_acl: 0            # MAC address filter ?
+hw_mode: g                # Hardware mode (a = IEEE 802.11a, b = IEEE 802.11b, g = IEEE 802.11g)
+auth_algs: 1              # Open Wifi or not
+wpa: 3                    # Use of wpa ?
+logger_stdout: 1          # Enable stdout for log management ?
+logger_stdout_level: 2    # Stdout log level
+logger_syslog: 1          # Enable syslog for log management?
+logger_syslog_level: 2    # Syslog level
+wpa_key_mgmt: 1           # Key mangement for the algorithm to use
+wpa_passphrase: Jr0W2WsZR # Passphrase for the access point
+wpa_pairwise: CCMP        # WPA's data encryption
+rsn_pairwise: TKIP

@@ -23,9 +23,24 @@ said previously, the result is a human readable an easy to understand by non tec
 
 ## Installation
 ### Requirements
-First of all, Python 2.7 and Pip are required. Follow the next instructions to install required dependencies :
+First of all, Python 2.7 and Pip are required. 
+
+```bash
+$ sudo apt-get install python-dev python-pip
+$ sudo dnf install python-dev python-pip
+```
+
+Run the setup script as follow
 
 `$ python setup.py install`
 
-For the rest, the script check unmet dependencies and ask the user to install it (on a Debian based system, other Linux
-distributions are not handled yet).
+The following dependencies are required too:
+
+```bash
+# Debian based
+$ sudo apt-get install aircrack-ng wireless-tools xterm dhcpd dnsmasq sslsplit whois
+# Fedora
+$ sudo dnf install aircrack-ng wireless-tools xterm dhcpd dnsmasq sslsplit whois
+# Archlinux
+$ yaourt -S aircrack-ng wireless-tools xterm dhcpd dnsmasq whois
+```
